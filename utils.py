@@ -1,5 +1,4 @@
 import codecs
-import json
 import logging
 import os
 import time
@@ -9,7 +8,26 @@ import gspread
 import wget
 from dotenv import load_dotenv
 from oauth2client.service_account import ServiceAccountCredentials
+import json
 
+
+def flatten_json_file(input_file, output_file):
+    # Load data from JSON file
+    with open(input_file, 'r') as f:
+        data = json.load(f)
+
+    # Initialize an empty list to store the flattened data
+    flattened_data = []
+
+    # Loop through the outer list and extend the flattened list with each inner list
+    for inner_list in data:
+        flattened_data.extend(inner_list)
+
+    # Write the flattened list back to a new JSON file
+    with open(output_file, 'w') as f:
+        json.dump(flattened_data, f, indent=4)
+
+    print(f"Data successfully flattened and saved to {output_file}")
 
 def setup_logging():
     # Load environment variables at the beginning of the script
@@ -82,3 +100,6 @@ def write_json(path:str, data, encoding='utf-8'):
     with codecs.open(path, 'w', encoding) as file:
         json.dump(data, file, ensure_ascii=False, indent=4)
     return True
+
+
+flatten_json_file('logic/product_offer.json', 'logic/flattened_product_offer.json')

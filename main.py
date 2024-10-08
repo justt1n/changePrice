@@ -41,6 +41,9 @@ def do_payload(payload):
     TMP_BLACKLIST_RANGE = payload.CELL_BLACKLIST
     min_price = get_payload_min_price(payload)
     max_price = get_payload_max_price(payload)
+    print(f"Min price: {min_price}")
+    print(f"Max price: {max_price}")
+
 
 def process():
     _price_sheet = gs.open_by_url(os.getenv('MAIN_SHEET_URL'))
@@ -48,6 +51,7 @@ def process():
     data = data[int(os.getenv('START_ROW')):]
     for i in range(len(data)):
         PAYLOADS.append(Payload(data[i]))
+
     for payload in PAYLOADS:
         do_payload(payload)
 

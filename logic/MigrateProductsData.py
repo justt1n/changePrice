@@ -4,7 +4,7 @@ import sqlite3
 output_file = 'products.json'
 
 
-def migrate_json_to_sqlite(json_file, sqlite_db):
+def migrate_products_json_to_sqlite(json_file, sqlite_db):
     # Connect to SQLite (or create the database)
     conn = sqlite3.connect(sqlite_db)
     cursor = conn.cursor()
@@ -61,4 +61,4 @@ def migrate_json_to_sqlite(json_file, sqlite_db):
 
 
 # Example usage:
-migrate_json_to_sqlite(output_file, 'products.db')
+migrate_products_json_to_sqlite(output_file, 'products.db')
