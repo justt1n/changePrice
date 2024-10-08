@@ -27,12 +27,24 @@ def get_product_offers(product_id: int, api_key: str)-> list:
         })
     return results
 
-def put_edit_offer_by_id(model: ChangePriceModel):
+
+def retrieve_offer_by_id(offer_id: int, api_key: str)-> dict:
+    url = f"https://backend.gamivo.com/api/public/v1/offers/{offer_id}"
+    headers = {
+        "accept": "application/json",
+        "Authorization": api_key
+    }
+    response = requests.get(url, headers=headers)
+    return response.json()
 
 
-    pass
 
-
-
-load_dotenv('../settings.env')
-print(get_product_offers(176323, os.getenv('GAMIVO_API_KEY')))
+# def put_edit_offer_by_id(model: ChangePriceModel):
+#
+#
+#     pass
+#
+#
+#
+# load_dotenv('../settings.env')
+# print(get_product_offers(176323, os.getenv('GAMIVO_API_KEY')))
