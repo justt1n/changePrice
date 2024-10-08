@@ -1,8 +1,13 @@
+import json
+
 import requests
 import os
 
 from dotenv import load_dotenv
 from gspread import api_key
+
+from entity import ChangePriceModel
+
 
 #Get top 2 offer by products id
 #/api/public/v1/products/{id}/offers
@@ -21,6 +26,12 @@ def get_product_offers(product_id: int, api_key: str)-> list:
             'price': i['retail_price']
         })
     return results
+
+def put_edit_offer_by_id(model: ChangePriceModel):
+
+
+    pass
+
 
 
 load_dotenv('../settings.env')
