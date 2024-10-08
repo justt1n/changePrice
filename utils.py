@@ -102,4 +102,4 @@ def write_json(path:str, data, encoding='utf-8'):
     return True
 
 
-flatten_json_file('logic/product_offer.json', 'logic/flattened_product_offer.json')
+flatten_json_file('storage/product_offer.json', 'storage/flattened_product_offer.json')

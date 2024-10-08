@@ -10,7 +10,7 @@ from logic.MigrateOffersData import migrate_offers_json_to_sqlite
 
 # from MigrateData import migrate_json_to_sqlite
 
-def fetch_product_list(output_file = 'product_offers.json'):
+def fetch_product_list(output_file : str):
     # API base URL and headers
     base_url = "https://backend.gamivo.com/api/public/v1/offers"
     headers = {
@@ -82,8 +82,9 @@ def fetch_product_list(output_file = 'product_offers.json'):
 
 
 def get_product_list():
-    fetch_product_list(os.getenv('OUTPUT_FILE', 'product_offer.json'))
-    migrate_offers_json_to_sqlite(os.getenv('OUTPUT_FILE', 'products.json'), os.getenv('SQLITE_DB', 'products.db'))
+    fetch_product_list(os.getenv('OUTPUT_FILE', '../storage/product_offer.json'))
+    migrate_offers_json_to_sqlite(os.getenv('OUTPUT_FILE', '../storage/product_offer.json'), os.getenv('SQLITE_DB',
+                                                                                       '../storage/product_offers.db'))
 
 # load_dotenv('../settings.env')
 # get_product_list()

@@ -4,7 +4,7 @@ import requests
 import json
 from MigrateProductsData import migrate_products_json_to_sqlite
 
-def fetch_product_list(output_file = 'products.json'):
+def fetch_product_list(output_file : str):
     # API base URL and headers
     base_url = "https://backend.gamivo.com/api/public/v1/products"
     headers = {
@@ -76,5 +76,6 @@ def fetch_product_list(output_file = 'products.json'):
 
 
 def get_product_list():
-    fetch_product_list(os.getenv('OUTPUT_FILE', 'products.json'))
-    migrate_products_json_to_sqlite(os.getenv('OUTPUT_FILE', 'products.json'), os.getenv('SQLITE_DB', 'products.db'))
+    fetch_product_list(os.getenv('OUTPUT_FILE', '../storage/products.json'))
+    migrate_products_json_to_sqlite(os.getenv('OUTPUT_FILE', '../storage/products.json'), os.getenv('SQLITE_DB',
+                                                                                         '../storage/products.db'))

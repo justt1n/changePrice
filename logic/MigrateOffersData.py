@@ -1,7 +1,7 @@
 import json
 import sqlite3
 
-output_file = 'product_offer.json'
+output_file = '../storage/product_offer.json'
 
 def migrate_offers_json_to_sqlite(json_file, sqlite_db):
     # Connect to SQLite (or create the database)
