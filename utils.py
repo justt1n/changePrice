@@ -102,4 +102,10 @@ def write_json(path:str, data, encoding='utf-8'):
     return True
 
 
+def flatten_2d_array(two_d_array):
+    flattened_list = []
+    for sublist in two_d_array:
+        flattened_list.extend(sublist)
+    return flattened_list
+
 # flatten_json_file('storage/product_offer.json', 'storage/flattened_product_offer.json')

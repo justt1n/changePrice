@@ -21,7 +21,6 @@ TMP_PRICE_RANGE = None
 
 def onload():
     global gs
-    global BLACKLIST
     global PRICES
     global price_service
     setup_logging()
@@ -29,16 +28,10 @@ def onload():
     price_service = PriceService()
 
 
-def get_payload_min_price(payload: Payload):
-    tmp_price_sheet = gs.open_by_key(payload.IDSHEET_MIN)
-    min_price = tmp_price_sheet.worksheet(payload.SHEET_MIN).acell(payload.CELL_MIN).value
-    return float(min_price)
-
-
-def get_payload_max_price(payload: Payload):
-    tmp_price_sheet = gs.open_by_key(payload.IDSHEET_MAX)
-    max_price = tmp_price_sheet.worksheet(payload.SHEET_MAX).acell(payload.CELL_MAX).value
-    return float(max_price)
+def get_payload_min_max_price(payload: Payload):
+    min_price = gs.open_by_key(payload.IDSHEET_MIN).worksheet(payload.SHEET_MIN).acell(payload.CELL_MIN).value
+    max_price = gs.open_by_key(payload.IDSHEET_MAX).worksheet(payload.SHEET_MAX).acell(payload.CELL_MAX).value
+    return float(min_price), float(max_price)
 
 
 def get_final_price(current_price: float, target_price:float,  min_change_price: float, max_change_price: float, floating_point: int, min_price: float, max_price: float):
@@ -72,12 +65,19 @@ def get_final_price(current_price: float, target_price:float,  min_change_price:
             return current_price
 
 
+def write_log_cell(index, log_str, column='C'):
+    cell_to_write = f'{column}{index+1+int(os.getenv("START_ROW"))}'
+    _price_sheet = gs.open_by_url(os.getenv('MAIN_SHEET_URL')).worksheet(os.getenv('MAIN_SHEET_NAME'))
+    _price_sheet.update_acell(cell_to_write, log_str)
 
-def do_payload(payload):
+
+def do_payload(index, payload):
     global TMP_BLACKLIST_RANGE
+    global BLACKLIST
     TMP_BLACKLIST_RANGE = payload.CELL_BLACKLIST
-    min_price = get_payload_min_price(payload)
-    max_price = get_payload_max_price(payload)
+    BLACKLIST = gs.open_by_key(payload.IDSHEET_BLACKLIST).worksheet(payload.SHEET_BLACKLIST).get(TMP_BLACKLIST_RANGE)
+    BLACKLIST = flatten_2d_array(BLACKLIST)
+    min_price, max_price = get_payload_min_max_price(payload)
     _is_changed = False
     #init value from payload
     _offer_id = price_service.get_order_id_by_product_id(int(payload.PRODUCT_COMPARE))
@@ -100,11 +100,21 @@ def do_payload(payload):
     print(f"Target price: {_target_price}")
 
     #TODO update price
-
+    if _current_top_seller in BLACKLIST:
+        print(f"Current top seller is in blacklist: {_current_top_seller}")
+        return
+    if _current_top_seller == "Cnlgaming":
+        log_str = f"{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}"
+        write_log_cell(index, log_str, column='D')
+        return
     #TODO add result to sheet
     if not _is_changed:
         log_str = f"{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}: Giá đã cập nhật thành công; Price = {_target_price}; Pricemin = {min_price}, Pricemax = {max_price}, GiaSosanh = {_current_top_price} - Seller: {_current_top_seller}"
         print(log_str)
+        write_log_cell(index, log_str, column='C')
+    log_str = f"{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}"
+    write_log_cell(index, log_str, column='D')
+    return
 
 def process():
     _price_sheet = gs.open_by_url(os.getenv('MAIN_SHEET_URL'))
@@ -113,10 +123,15 @@ def process():
     for i in range(len(data)):
         PAYLOADS.append(Payload(data[i]))
 
-    for payload in PAYLOADS:
+    for index, payload in enumerate(PAYLOADS):
         if int(payload.CHECK) != 1:
             continue
-        do_payload(payload)
+        try:
+            do_payload(index, payload)
+        except Exception as e:
+            log_str = f"Error processing payload at index {index}: {e}"
+            write_log_cell(index, log_str, column='E')
+            continue
 
 
 
