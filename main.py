@@ -1,15 +1,19 @@
 import os
-
+import json
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
 from logic.PriceService import PriceService
 from logic.GamivoApiClient import *
 from utils import *
 from Payload import Payload
+from datetime import datetime
 
 #GLOBAL VARIABLES
-gs = None
+service = None
 price_service = None
 BLACKLIST = None
 PRICES = None
+REQUEST_COUNT = 0  # Global counter for Google API requests
 
 PAYLOADS = []
 PAYLOAD = None
@@ -18,21 +22,60 @@ PAYLOAD = None
 TMP_BLACKLIST_RANGE = None
 TMP_PRICE_RANGE = None
 
+# Google Sheets API constants
+SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
+
+def increment_request_count():
+    """Increments the global request counter."""
+    global REQUEST_COUNT
+    REQUEST_COUNT += 1
+
+def get_sheets_service():
+    """Authenticate and return a Google Sheets API service."""
+    creds = service_account.Credentials.from_service_account_file(
+        os.getenv('GOOGLE_KEY_PATH'), scopes=SCOPES)
+    service = build('sheets', 'v4', credentials=creds)
+    return service
 
 def onload():
-    global gs
-    global PRICES
+    global service
     global price_service
     setup_logging()
-    gs = get_gs_client()
+    service = get_sheets_service()
     price_service = PriceService()
 
+### Wrapper functions to count requests
+def get_sheet_data(sheet_id, range_name):
+    """Get data from the Google Sheet."""
+    increment_request_count()  # Increment request count
+    result = service.spreadsheets().values().get(spreadsheetId=sheet_id, range=range_name).execute()
+    return result.get('values', [])
+
+def update_sheet_data(sheet_id, sheet_name, range_name, values):
+    """Update the Google Sheet."""
+    increment_request_count()  # Increment request count
+    body = {
+        'values': values
+    }
+    full_range = f"{sheet_name}!{range_name}"
+    service.spreadsheets().values().update(
+        spreadsheetId=sheet_id, range=full_range,
+        valueInputOption='RAW', body=body).execute()
+
+def batch_update_sheet_data(sheet_id, data):
+    """Batch update the Google Sheet."""
+    increment_request_count()  # Increment request count
+    service.spreadsheets().values().batchUpdate(
+        spreadsheetId=sheet_id,
+        body={'data': data, 'valueInputOption': 'RAW'}
+    ).execute()
 
 def get_payload_min_max_price(payload: Payload):
-    min_price = gs.open_by_key(payload.IDSHEET_MIN).worksheet(payload.SHEET_MIN).acell(payload.CELL_MIN).value
-    max_price = gs.open_by_key(payload.IDSHEET_MAX).worksheet(payload.SHEET_MAX).acell(payload.CELL_MAX).value
+    cell_min = f"{payload.SHEET_MIN}!{payload.CELL_MIN}"
+    cell_max = f"{payload.SHEET_MAX}!{payload.CELL_MAX}"
+    min_price = get_sheet_data(payload.IDSHEET_MIN, cell_min)[0][0]
+    max_price = get_sheet_data(payload.IDSHEET_MAX, cell_max)[0][0]
     return float(min_price), float(max_price)
-
 
 def get_final_price(current_price: float, target_price:float,  min_change_price: float, max_change_price: float, floating_point: int, min_price: float, max_price: float):
     if current_price == 0:
@@ -64,64 +107,94 @@ def get_final_price(current_price: float, target_price:float,  min_change_price:
                 current_price -= min_change_price
             return current_price
 
-
 def write_log_cell(index, log_str, column='C'):
     cell_to_write = f'{column}{index+1+int(os.getenv("START_ROW"))}'
-    _price_sheet = gs.open_by_url(os.getenv('MAIN_SHEET_URL')).worksheet(os.getenv('MAIN_SHEET_NAME'))
-    _price_sheet.update_acell(cell_to_write, log_str)
+    spreadsheet_id = os.getenv('MAIN_SHEET_ID')
+    sheet_name = os.getenv('MAIN_SHEET_NAME')
+    update_sheet_data(spreadsheet_id, sheet_name, cell_to_write, [[log_str]])
 
+def do_payload(index, payload, blacklist_cache=None):
+    global TMP_BLACKLIST_RANGE, BLACKLIST
+    global REQUEST_COUNT
 
-def do_payload(index, payload):
-    global TMP_BLACKLIST_RANGE
-    global BLACKLIST
-    TMP_BLACKLIST_RANGE = payload.CELL_BLACKLIST
-    BLACKLIST = gs.open_by_key(payload.IDSHEET_BLACKLIST).worksheet(payload.SHEET_BLACKLIST).get(TMP_BLACKLIST_RANGE)
-    BLACKLIST = flatten_2d_array(BLACKLIST)
-    min_price, max_price = get_payload_min_max_price(payload)
+    REQUEST_COUNT = 0  # Reset request count for each payload
+
     _is_changed = False
-    #init value from payload
+
+    # Use cached blacklist if available, otherwise fetch once and cache it
+    if blacklist_cache is not None:
+        BLACKLIST = blacklist_cache
+    else:
+        TMP_BLACKLIST_RANGE = payload.CELL_BLACKLIST
+        BLACKLIST = flatten_2d_array(get_sheet_data(payload.IDSHEET_BLACKLIST, TMP_BLACKLIST_RANGE))
+
+    # Fetch min and max prices
+    min_price, max_price = get_payload_min_max_price(payload)
+
+    # Gather price and product info in a single API call
     _offer_id = price_service.get_order_id_by_product_id(int(payload.PRODUCT_COMPARE))
-    _current_price = retrieve_offer_by_id(price_service.get_order_id_by_product_id(int(payload.PRODUCT_COMPARE)), os.getenv('GAMIVO_API_KEY'))['retail_price']
-    _current_top = get_product_offers(int(payload.PRODUCT_COMPARE), os.getenv('GAMIVO_API_KEY'))[0]
-    _current_top_price = _current_top['price']
-    _current_top_seller = _current_top['seller']
+    offer_data = retrieve_offer_by_id(_offer_id, os.getenv('GAMIVO_API_KEY'))
+    _current_price = offer_data['retail_price']
+    _current_top_offer = get_product_offers(int(payload.PRODUCT_COMPARE), os.getenv('GAMIVO_API_KEY'))[0]
+    _current_top_price = _current_top_offer['price']
+    _current_top_seller = _current_top_offer['seller']
+
+    # Calculate target price
     _min_change_price = payload.DONGIAGIAM_MIN
     _max_change_price = payload.DONGIAGIAM_MAX
     _target_price = get_final_price(float(_current_price), float(_current_top_price), float(_min_change_price),
                                     float(_max_change_price), 2, float(min_price), float(max_price))
-    print(f"Min price: {min_price}")
-    print(f"Max price: {max_price}")
-    print(f"Min change price: {_min_change_price}")
-    print(f"Max change price: {_max_change_price}")
-    print(f"Offer ID: {_offer_id}")
-    print(f"My price: {_current_price}")
-    print(f"Top price: {_current_top_price}")
-    print(f"Top seller: {_current_top_seller}")
-    print(f"Target price: {_target_price}")
 
-    #TODO update price
+    # Skip if seller is in blacklist
     if _current_top_seller in BLACKLIST:
         print(f"Current top seller is in blacklist: {_current_top_seller}")
-        return
+        return BLACKLIST
+
+    # Log information
+    log_data = []
+
     if _current_top_seller == "Cnlgaming":
-        log_str = f"{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}"
-        write_log_cell(index, log_str, column='D')
-        return
-    #TODO add result to sheet
+        log_data.append((index, f"{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}", 'D'))
+        batch_write_log(log_data)
+        print(f"Requests made for this payload: {REQUEST_COUNT}")
+        return BLACKLIST
+
+    # Update the price if it's not in the blacklist and not already changed
     if not _is_changed:
         log_str = f"{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}: Giá đã cập nhật thành công; Price = {_target_price}; Pricemin = {min_price}, Pricemax = {max_price}, GiaSosanh = {_current_top_price} - Seller: {_current_top_seller}"
         print(log_str)
-        write_log_cell(index, log_str, column='C')
-    log_str = f"{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}"
-    write_log_cell(index, log_str, column='D')
-    return
+        log_data.append((index, log_str, 'C'))
+
+    # Log the action
+    log_data.append((index, f"{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}", 'D'))
+
+    # Batch write log data
+    batch_write_log(log_data)
+
+    print(f"Requests made for this payload: {REQUEST_COUNT}")  # Print the request count after processing
+    return BLACKLIST
+
+def batch_write_log(log_data):
+    """Batch write log data to reduce individual API requests."""
+    cells_to_update = []
+    for log in log_data:
+        index, log_str, column = log
+        cell_to_write = f'{column}{index + 1 + int(os.getenv("START_ROW"))}'
+        cells_to_update.append({'range': cell_to_write, 'values': [[log_str]]})
+
+    if cells_to_update:
+        sheet_id = os.getenv('MAIN_SHEET_ID')
+        batch_update_sheet_data(sheet_id, cells_to_update)
 
 def process():
-    _price_sheet = gs.open_by_url(os.getenv('MAIN_SHEET_URL'))
-    data = _price_sheet.worksheet(os.getenv('MAIN_SHEET_NAME')).get_all_values()
+    sheet_id = os.getenv('MAIN_SHEET_ID')
+    data = get_sheet_data(sheet_id, os.getenv('MAIN_SHEET_NAME'))
     data = data[int(os.getenv('START_ROW')):]
     for i in range(len(data)):
-        PAYLOADS.append(Payload(data[i]))
+        try:
+            PAYLOADS.append(Payload(data[i]))
+        except:
+            continue
 
     for index, payload in enumerate(PAYLOADS):
         if int(payload.CHECK) != 1:
@@ -134,11 +207,19 @@ def process():
             continue
 
 
+def process_with_retry(retries = 3):
+    retries = os.getenv('RETRIES_TIME', retries)
+    for i in range(retries):
+        try:
+            process()
+            break
+        except Exception as e:
+            print(f"Error processing payload: {e}")
+            continue
 
 def main():
     load_dotenv('settings.env')
     onload()
     process()
-
 
 main()
