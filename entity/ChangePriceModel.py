@@ -3,10 +3,10 @@ from typing import Optional
 
 @dataclass
 class ChangePriceModel:
-    wholesale_mode: int = field(metadata={"required": True, "min": 0, "max": 2})
+    wholesale_mode: int = field(default=0,metadata={"required": True, "min": 0, "max": 2})
     seller_price: Optional[float] = field(default=None, metadata={"min": 0})
-    tier_one_seller_price: Optional[float] = field(default=None, metadata={"min": 0})
-    tier_two_seller_price: Optional[float] = field(default=None, metadata={"min": 0})
+    tier_one_seller_price: Optional[float] = field(default=0, metadata={"min": 0})
+    tier_two_seller_price: Optional[float] = field(default=0, metadata={"min": 0})
     status: int = field(default=1, metadata={"min": 0, "max": 1})
     keys: Optional[int] = field(default=None, metadata={"min": 0, "max": 10000})
     is_preorder: Optional[bool] = field(default=None)
