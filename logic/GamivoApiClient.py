@@ -39,12 +39,29 @@ def retrieve_offer_by_id(offer_id: int, api_key: str)-> dict:
 
 
 
-# def put_edit_offer_by_id(model: ChangePriceModel):
-#
-#
-#     pass
-#
-#
-#
-# load_dotenv('../settings.env')
-# print(get_product_offers(176323, os.getenv('GAMIVO_API_KEY')))
+def put_edit_offer_by_id(model: ChangePriceModel, offer_id: int, api_key: str):
+    url = f"https://backend.gamivo.com/api/public/v1/offers/{offer_id}"
+    headers = {
+        "accept": "application/json",
+        "Authorization": api_key
+    }
+    data = {
+        "wholesale_mode": model.get('wholesale_mode', 0),
+        "seller_price": model.get('seller_price', 0),
+        "tier_one_seller_price": model.get('tier_one_seller_price', 0),
+        "tier_two_seller_price": model.get('tier_two_seller_price', 0),
+        "status": model.get('status', 1),
+        "is_preorder": model.get('is_preorder', False)
+    }
+    response = requests.put(url, headers=headers, data=json.dumps(data))
+    return response.status_code, response.json()
+
+
+def calculate_seller_price(offer_id: int, price: float, api_key: str) -> dict:
+    url = f"https://backend.gamivo.com/api/public/v1/offers/calculate-seller-price/{offer_id}?price={price}&tier_one_price=0&tier_two_price=0"
+    headers = {
+        "accept": "application/json",
+        "Authorization": api_key
+    }
+    response = requests.get(url, headers=headers)
+    return response.json()

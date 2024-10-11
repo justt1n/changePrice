@@ -88,21 +88,26 @@ def get_payload_min_max_price(payload: Payload):
 
 def get_final_price(current_price: float, target_price: float, min_change_price: float, max_change_price: float,
                     floating_point: int, min_price: float, max_price: float):
+    if floating_point == None:
+        floating_point = 2
     if current_price == 0:
         print("Current price is 0 so we return target price minus min change price")
-        return target_price - min_change_price
+        return round(target_price - min_change_price, floating_point)
     if current_price == target_price:
         print("Current price is equal to target price")
-        return current_price - min_change_price
+        return round(current_price - min_change_price, floating_point)
     if current_price < target_price:
         print("Current price is less than target price")
         if target_price > max_price:
             print("Target price is greater than max price, set current price to max price")
             return max_price
         else:
-            while current_price < target_price:
+            print("Current price is less than target price, optimize the price")
+            while current_price + max_change_price < target_price:
                 current_price += max_change_price
-        return current_price
+            while current_price + min_change_price < target_price:
+                current_price += min_change_price
+        return round(current_price, floating_point)
     if current_price > target_price:
         if target_price < min_price:
             print("Target price is less than min price, set current price to min price")
@@ -114,7 +119,7 @@ def get_final_price(current_price: float, target_price: float, min_change_price:
             while current_price - target_price <= min_change_price and current_price - min_change_price >= min_price:
                 print("Current price is greater than target price and min change price")
                 current_price -= min_change_price
-            return current_price
+            return round(current_price, floating_point)
 
 
 def write_log_cell(index, log_str, column='C'):
@@ -129,8 +134,6 @@ def do_payload(index, payload, blacklist_cache=None):
     global REQUEST_COUNT
 
     REQUEST_COUNT = 0  # Reset request count for each payload
-
-    _is_changed = False
 
     # Use cached blacklist if available, otherwise fetch once and cache it
     if blacklist_cache is not None:
@@ -153,8 +156,11 @@ def do_payload(index, payload, blacklist_cache=None):
     # Calculate target price
     _min_change_price = payload.DONGIAGIAM_MIN
     _max_change_price = payload.DONGIAGIAM_MAX
+    _current_top_price = calculate_seller_price(_offer_id, _current_top_price, os.getenv('GAMIVO_API_KEY')).get('seller_price')
+
     _target_price = get_final_price(float(_current_price), float(_current_top_price), float(_min_change_price),
-                                    float(_max_change_price), 2, float(min_price), float(max_price))
+                                    float(_max_change_price), int(payload.DONGIA_LAMTRON), float(min_price), float(max_price))
+
 
     # Skip if seller is in blacklist
     if _current_top_seller in BLACKLIST:
@@ -170,12 +176,16 @@ def do_payload(index, payload, blacklist_cache=None):
         # print(f"Requests made for this payload: {REQUEST_COUNT}")
         return BLACKLIST
 
-    # Update the price if it's not in the blacklist and not already changed
-    if not _is_changed:
+    edit_offer_payload = price_service.convert_to_new_offer(offer_data, _target_price)
+    # print(f"Edit offer payload: {edit_offer_payload}")
+    status_code, res = put_edit_offer_by_id(edit_offer_payload, _offer_id, os.getenv('GAMIVO_API_KEY'))
+    if status_code == 200:
         log_str = f"{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}: Giá đã cập nhật thành công; Price = {_target_price}; Pricemin = {min_price}, Pricemax = {max_price}, GiaSosanh = {_current_top_price} - Seller: {_current_top_seller}"
         print(log_str)
         log_data.append((index, log_str, 'C'))
 
+    # log_str = f"{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}: Giá đã cập nhật thành công; Price = {_target_price}; Pricemin = {min_price}, Pricemax = {max_price}, GiaSosanh = {_current_top_price} - Seller: {_current_top_seller}"
+    print(log_str)
     # Log the action
     log_data.append((index, f"{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}", 'D'))
 
@@ -242,6 +252,5 @@ def main():
     load_dotenv('settings.env')
     onload()
     process_with_retry(os.getenv('RETRIES_TIME', 3))
-
 
 main()
