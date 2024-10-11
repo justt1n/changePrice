@@ -220,6 +220,8 @@ def process():
             continue
 
     for index, payload in enumerate(PAYLOADS):
+        if payload.CHECK == '':
+            continue
         if int(payload.CHECK) != 1:
             continue
         for _ in range(2):  # Maximum of two attempts
