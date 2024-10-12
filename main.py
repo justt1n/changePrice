@@ -88,10 +88,10 @@ def get_payload_min_max_price(payload: Payload):
 
 def get_final_price(current_price: float, target_price: float, min_change_price: float, max_change_price: float,
                     floating_point: int, min_price: float, max_price: float):
-    if floating_point == None:
+    if floating_point is None:
         floating_point = 2
     if current_price == 0:
-        print("Current price is 0 so we return target price minus min change price")
+        print("Current price is 0 so I return target price minus min change price")
         return round(target_price - min_change_price, floating_point)
     if current_price == target_price:
         print("Current price is equal to target price")
@@ -102,11 +102,11 @@ def get_final_price(current_price: float, target_price: float, min_change_price:
             print("Target price is greater than max price, set current price to max price")
             return max_price
         else:
-            print("Current price is less than target price, optimize the price")
             while current_price + max_change_price < target_price:
                 current_price += max_change_price
             while current_price + min_change_price < target_price:
                 current_price += min_change_price
+            print("Current price is less than target price, optimize the price, new price is: ", round(current_price, floating_point))
         return round(current_price, floating_point)
     if current_price > target_price:
         if target_price < min_price:
