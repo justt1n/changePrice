@@ -81,9 +81,11 @@ def batch_update_sheet_data(sheet_id, data):
 def get_payload_min_max_price(payload: Payload):
     cell_min = f"{payload.SHEET_MIN}!{payload.CELL_MIN}"
     cell_max = f"{payload.SHEET_MAX}!{payload.CELL_MAX}"
+    call_stock = f"{payload.SHEET_STOCK}!{payload.CELL_STOCK}"
     min_price = get_sheet_data(payload.IDSHEET_MIN, cell_min)[0][0]
     max_price = get_sheet_data(payload.IDSHEET_MAX, cell_max)[0][0]
-    return float(min_price), float(max_price)
+    stock = get_sheet_data(payload.IDSHEET_STOCK, call_stock)[0][0]
+    return float(min_price), float(max_price), int(stock)
 
 
 def get_final_price(current_price: float, target_price: float, min_change_price: float, max_change_price: float,
@@ -143,7 +145,7 @@ def do_payload(index, payload, blacklist_cache=None):
         BLACKLIST = flatten_2d_array(get_sheet_data(payload.IDSHEET_BLACKLIST, TMP_BLACKLIST_RANGE))
 
     # Fetch min and max prices
-    min_price, max_price = get_payload_min_max_price(payload)
+    min_price, max_price, stock = get_payload_min_max_price(payload)
 
     # Gather price and product info in a single API call
     _offer_id = price_service.get_order_id_by_product_id(int(payload.PRODUCT_COMPARE))
@@ -176,7 +178,7 @@ def do_payload(index, payload, blacklist_cache=None):
     #     # print(f"Requests made for this payload: {REQUEST_COUNT}")
     #     return BLACKLIST
 
-    edit_offer_payload = price_service.convert_to_new_offer(offer_data, _target_price)
+    edit_offer_payload = price_service.convert_to_new_offer(offer_data, _target_price, stock)
     print(("offer_data", offer_data))
     print(f"Set {payload.Product_name} to {_target_price}")
     if _current_price != _target_price:

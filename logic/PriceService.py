@@ -13,7 +13,7 @@ class PriceService:
             return result[0][0]
         return None
 
-    def convert_to_new_offer(self, offer_data: dict, new_price: float) -> dict:
+    def convert_to_new_offer(self, offer_data: dict, new_price: float, stock: int) -> dict:
         _tier_one_seller_price = offer_data.get('tier_one_seller_price', 0) or 0
         _tier_two_seller_price = offer_data.get('tier_two_seller_price', 0) or 0
         return {
@@ -22,6 +22,6 @@ class PriceService:
             "tier_one_seller_price": _tier_one_seller_price,
             "tier_two_seller_price": _tier_two_seller_price,
             "status": 1,
-            "keys": offer_data.get("keys", 10000),  # "keys": 2000,
+            "keys": offer_data.get("keys", stock),  # "keys": 2000,
             "is_preorder": offer_data['is_preorder']
         }
