@@ -170,11 +170,11 @@ def do_payload(index, payload, blacklist_cache=None):
     # Log information
     log_data = []
 
-    if _current_top_seller == "Cnlgaming":
-        log_data.append((index, f"{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}", 'D'))
-        batch_write_log(log_data)
-        # print(f"Requests made for this payload: {REQUEST_COUNT}")
-        return BLACKLIST
+    # if _current_top_seller == "Cnlgaming":
+    #     log_data.append((index, f"{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}", 'D'))
+    #     batch_write_log(log_data)
+    #     # print(f"Requests made for this payload: {REQUEST_COUNT}")
+    #     return BLACKLIST
 
     edit_offer_payload = price_service.convert_to_new_offer(offer_data, _target_price)
     print(f"Set {payload.Product_name} to {_target_price}")
