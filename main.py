@@ -251,6 +251,7 @@ def process_with_retry(retries=3):
 
 
 def main():
+    global PAYLOADS
     load_dotenv('settings.env')
     onload()
     while True:
