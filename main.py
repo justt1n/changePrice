@@ -177,7 +177,7 @@ def do_payload(index, payload, blacklist_cache=None):
         return BLACKLIST
 
     edit_offer_payload = price_service.convert_to_new_offer(offer_data, _target_price)
-    # print(f"Edit offer payload: {edit_offer_payload}")
+    print(f"Set {payload.Product_name} to {_target_price}")
     status_code, res = put_edit_offer_by_id(edit_offer_payload, _offer_id, os.getenv('GAMIVO_API_KEY'))
     if status_code == 200:
         log_str = f"{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}: Giá đã cập nhật thành công; Price = {_target_price}; Pricemin = {min_price}, Pricemax = {max_price}, GiaSosanh = {_current_top_price} - Seller: {_current_top_seller}"
