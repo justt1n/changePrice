@@ -177,6 +177,7 @@ def do_payload(index, payload, blacklist_cache=None):
     #     return BLACKLIST
 
     edit_offer_payload = price_service.convert_to_new_offer(offer_data, _target_price)
+    print(("offer_data", offer_data))
     print(f"Set {payload.Product_name} to {_target_price}")
     if _current_price != _target_price:
         status_code, res = put_edit_offer_by_id(edit_offer_payload, _offer_id, os.getenv('GAMIVO_API_KEY'))

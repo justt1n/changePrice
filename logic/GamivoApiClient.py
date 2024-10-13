@@ -50,7 +50,8 @@ def put_edit_offer_by_id(model: ChangePriceModel, offer_id: int, api_key: str):
         "seller_price": model.get('seller_price', 0),
         "tier_one_seller_price": model.get('tier_one_seller_price', 0),
         "tier_two_seller_price": model.get('tier_two_seller_price', 0),
-        "status": model.get('status', 1),
+        "status": 1,
+        "keys": model.get('keys', 10000),
         "is_preorder": model.get('is_preorder', False)
     }
     response = requests.put(url, headers=headers, data=json.dumps(data))
