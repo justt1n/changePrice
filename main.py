@@ -253,6 +253,7 @@ def process_with_retry(retries=3):
 def main():
     load_dotenv('settings.env')
     onload()
-    process_with_retry(os.getenv('RETRIES_TIME', 3))
+    while True:
+        process_with_retry(os.getenv('RETRIES_TIME', 3))
 
 main()
