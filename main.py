@@ -254,6 +254,7 @@ def main():
     load_dotenv('settings.env')
     onload()
     while True:
+        PAYLOADS = []
         process_with_retry(os.getenv('RETRIES_TIME', 3))
 
 main()
