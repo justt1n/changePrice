@@ -1,7 +1,7 @@
 import json
 import sqlite3
 
-output_file = '../storage/product_offer.json'
+output_file = './storage/product_offer.json'
 
 def migrate_offers_json_to_sqlite(json_file, sqlite_db):
     # Connect to SQLite (or create the database)
@@ -26,6 +26,8 @@ def migrate_offers_json_to_sqlite(json_file, sqlite_db):
         seller_price REAL
     )
     ''')
+
+    cursor.execute('DELETE FROM product_offers')
 
     # Load data from JSON file
     with open(json_file, 'r') as f:
@@ -63,4 +65,4 @@ def migrate_offers_json_to_sqlite(json_file, sqlite_db):
     print(f"Data successfully migrated to {sqlite_db}")
 
 # Example usage:
-migrate_offers_json_to_sqlite(output_file, 'product_offers.db')
+# migrate_offers_json_to_sqlite(output_file, 'product_offers.db')

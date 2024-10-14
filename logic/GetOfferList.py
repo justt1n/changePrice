@@ -3,7 +3,6 @@ import os
 import requests
 import json
 
-from dotenv import load_dotenv
 
 from logic.MigrateOffersData import migrate_offers_json_to_sqlite
 
@@ -82,9 +81,9 @@ def fetch_product_list(output_file : str):
 
 
 def get_product_list():
-    fetch_product_list(os.getenv('OUTPUT_FILE', '../storage/product_offer.json'))
-    migrate_offers_json_to_sqlite(os.getenv('OUTPUT_FILE', '../storage/product_offer.json'), os.getenv('SQLITE_DB',
-                                                                                       '../storage/product_offers.db'))
+    fetch_product_list(os.getenv('OUTPUT_FILE', './storage/product_offer.json'))
+    migrate_offers_json_to_sqlite(os.getenv('OUTPUT_FILE', './storage/product_offer.json'), os.getenv('SQLITE_DB',
+                                                                                       './storage/product_offers.db'))
 
 # load_dotenv('../settings.env')
 # get_product_list()
