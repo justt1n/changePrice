@@ -1,4 +1,3 @@
-from datetime import datetime
 from time import sleep
 
 from google.oauth2 import service_account
@@ -107,11 +106,13 @@ def get_final_price(current_price: float, target_price: float, min_change_price:
             print("Target price is greater than max price, set current price to max price")
             return max_price
         else:
-            while current_price + max_change_price < target_price and current_price + max_change_price <= max_price:
-                current_price += max_change_price
+            while current_price - target_price > max_change_price and current_price - max_change_price >= min_price:
+                current_price -= max_change_price
 
-            while current_price + min_change_price < target_price and current_price + min_change_price <= max_price:
-                current_price += min_change_price
+            while current_price - target_price < min_change_price  and current_price - min_change_price >= min_price:
+                current_price -= min_change_price
+
+            current_price = max(current_price, min_price)
 
             print("Optimized price, new price is: ", round(current_price, floating_point))
         return round(min(current_price, max_price), floating_point)
@@ -127,8 +128,7 @@ def get_final_price(current_price: float, target_price: float, min_change_price:
             while current_price - target_price >= min_change_price and current_price - min_change_price >= min_price:
                 current_price -= min_change_price
 
-            return max(min(round(current_price, floating_point), max_price), min_price)
-
+            return min(min(round(current_price, floating_point), max_price), min_price)
 
 
 def write_log_cell(index, log_str, column='C'):
@@ -165,11 +165,12 @@ def do_payload(index, payload, blacklist_cache=None):
     # Calculate target price
     _min_change_price = payload.DONGIAGIAM_MIN
     _max_change_price = payload.DONGIAGIAM_MAX
-    _current_top_price = calculate_seller_price(_offer_id, _current_top_price, os.getenv('GAMIVO_API_KEY')).get('seller_price')
+    _current_top_price = calculate_seller_price(_offer_id, _current_top_price, os.getenv('GAMIVO_API_KEY')).get(
+        'seller_price')
 
     _target_price = get_final_price(float(_current_price), float(_current_top_price), float(_min_change_price),
-                                    float(_max_change_price), int(payload.DONGIA_LAMTRON), float(min_price), float(max_price))
-
+                                    float(_max_change_price), int(payload.DONGIA_LAMTRON), float(min_price),
+                                    float(max_price))
 
     # Skip if seller is in blacklist
     if _current_top_seller in BLACKLIST:
@@ -270,5 +271,6 @@ def main():
     #     PAYLOADS = []
     #     process_with_retry(os.getenv('RETRIES_TIME', 3))
     process_with_retry(os.getenv('RETRIES_TIME', 3))
+
 
 main()
