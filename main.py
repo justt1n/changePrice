@@ -138,6 +138,27 @@ def write_log_cell(index, log_str, column='C'):
     update_sheet_data(spreadsheet_id, sheet_name, cell_to_write, [[log_str]])
 
 
+def get_target_to_compare(payload: Payload, min_price, max_price, my_name):
+    _current_top_offers = get_product_offers(int(payload.PRODUCT_COMPARE), os.getenv('GAMIVO_API_KEY'))
+    _current_top_offer = _current_top_offers[0]
+    _current_top_price = _current_top_offer['price']
+    _current_top_seller = _current_top_offer['seller']
+    if len(_current_top_offers) > 1:
+        _current_second_offer = _current_top_offers[1]
+        _current_second_price = _current_second_offer['price']
+        _current_second_seller = _current_second_offer['seller']
+
+    target_seller = _current_top_seller
+    target_price = _current_top_price
+    if _current_top_seller in BLACKLIST:
+        target_seller = _current_second_seller
+        target_price = _current_second_price
+        if _current_second_seller in BLACKLIST:
+            target_seller = my_name
+            target_price = min_price
+
+    return target_seller, target_price
+
 def do_payload(index, payload, blacklist_cache=None):
     global TMP_BLACKLIST_RANGE, BLACKLIST
     global REQUEST_COUNT
@@ -158,24 +179,25 @@ def do_payload(index, payload, blacklist_cache=None):
     _offer_id = price_service.get_order_id_by_product_id(int(payload.PRODUCT_COMPARE))
     offer_data = retrieve_offer_by_id(_offer_id, os.getenv('GAMIVO_API_KEY'))
     _current_price = offer_data['retail_price']
-    _current_top_offer = get_product_offers(int(payload.PRODUCT_COMPARE), os.getenv('GAMIVO_API_KEY'))[0]
-    _current_top_price = _current_top_offer['price']
-    _current_top_seller = _current_top_offer['seller']
-
+    _current_top_seller, _current_top_price = get_target_to_compare(payload, min_price, max_price, offer_data['seller_name'])
     # Calculate target price
     _min_change_price = payload.DONGIAGIAM_MIN
     _max_change_price = payload.DONGIAGIAM_MAX
+    _current_price = calculate_seller_price(_offer_id, _current_price, os.getenv('GAMIVO_API_KEY')).get(
+        'seller_price')
     _current_top_price = calculate_seller_price(_offer_id, _current_top_price, os.getenv('GAMIVO_API_KEY')).get(
         'seller_price')
-
-    _target_price = get_final_price(float(_current_price), float(_current_top_price), float(_min_change_price),
-                                    float(_max_change_price), int(payload.DONGIA_LAMTRON), float(min_price),
-                                    float(max_price))
 
     # Skip if seller is in blacklist
     if _current_top_seller in BLACKLIST:
         print(f"Current top seller is in blacklist: {_current_top_seller}")
         return BLACKLIST
+
+    _target_price = get_final_price(float(_current_price), float(_current_top_price), float(_min_change_price),
+                                    float(_max_change_price), int(payload.DONGIA_LAMTRON), float(min_price),
+                                    float(max_price))
+
+
 
     # Log information
     log_data = []
@@ -185,7 +207,7 @@ def do_payload(index, payload, blacklist_cache=None):
     #     batch_write_log(log_data)
     #     # print(f"Requests made for this payload: {REQUEST_COUNT}")
     #     return BLACKLIST
-
+    log_str = ''
     edit_offer_payload = price_service.convert_to_new_offer(offer_data, _target_price, stock)
     print(("offer_data", offer_data))
     print(f"Set {payload.Product_name} to {_target_price}")
@@ -193,7 +215,7 @@ def do_payload(index, payload, blacklist_cache=None):
         status_code, res = put_edit_offer_by_id(edit_offer_payload, _offer_id, os.getenv('GAMIVO_API_KEY'))
         if status_code == 200:
             log_str = f"{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}: Giá đã cập nhật thành công; Price = {_target_price}; Pricemin = {min_price}, Pricemax = {max_price}, GiaSosanh = {_current_top_price} - Seller: {_current_top_seller}"
-            print(log_str)
+            # print(log_str)
             log_data.append((index, log_str, 'C'))
 
     # log_str = f"{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}: Giá đã cập nhật thành công; Price = {_target_price}; Pricemin = {min_price}, Pricemax = {max_price}, GiaSosanh = {_current_top_price} - Seller: {_current_top_seller}"
