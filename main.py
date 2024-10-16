@@ -92,36 +92,43 @@ def get_final_price(current_price: float, target_price: float, min_change_price:
                     floating_point: int, min_price: float, max_price: float):
     if floating_point is None:
         floating_point = 2
+
     if current_price == 0:
         print("Current price is 0 so I return target price minus min change price")
-        return round(target_price - min_change_price, floating_point)
+        return round(max(min_price, target_price - min_change_price), floating_point)
+
     if current_price == target_price:
         print("Current price is equal to target price")
-        return round(current_price - min_change_price, floating_point)
+        return round(current_price, floating_point)
+
     if current_price < target_price:
         print("Current price is less than target price")
         if target_price > max_price:
             print("Target price is greater than max price, set current price to max price")
             return max_price
         else:
-            while current_price + max_change_price < target_price:
+            while current_price + max_change_price < target_price and current_price + max_change_price <= max_price:
                 current_price += max_change_price
-            while current_price + min_change_price < target_price:
+
+            while current_price + min_change_price < target_price and current_price + min_change_price <= max_price:
                 current_price += min_change_price
-            print("Current price is less than target price, optimize the price, new price is: ", round(current_price, floating_point))
-        return round(current_price, floating_point)
+
+            print("Optimized price, new price is: ", round(current_price, floating_point))
+        return round(min(current_price, max_price), floating_point)
+
     if current_price > target_price:
         if target_price < min_price:
             print("Target price is less than min price, set current price to min price")
             return min_price
         else:
             while current_price - target_price >= max_change_price and current_price - max_change_price >= min_price:
-                print("Current price is greater than target price and max change price")
                 current_price -= max_change_price
-            while current_price - target_price <= min_change_price and current_price - min_change_price >= min_price:
-                print("Current price is greater than target price and min change price")
+
+            while current_price - target_price >= min_change_price and current_price - min_change_price >= min_price:
                 current_price -= min_change_price
-            return round(current_price, floating_point)
+
+            return max(min(round(current_price, floating_point), max_price), min_price)
+
 
 
 def write_log_cell(index, log_str, column='C'):
@@ -191,6 +198,7 @@ def do_payload(index, payload, blacklist_cache=None):
     # log_str = f"{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}: Giá đã cập nhật thành công; Price = {_target_price}; Pricemin = {min_price}, Pricemax = {max_price}, GiaSosanh = {_current_top_price} - Seller: {_current_top_seller}"
     print(log_str)
     # Log the action
+
     log_data.append((index, f"{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}", 'D'))
 
     # Batch write log data
@@ -258,8 +266,9 @@ def main():
     global PAYLOADS
     load_dotenv('settings.env')
     onload()
-    while True:
-        PAYLOADS = []
-        process_with_retry(os.getenv('RETRIES_TIME', 3))
+    # while True:
+    #     PAYLOADS = []
+    #     process_with_retry(os.getenv('RETRIES_TIME', 3))
+    process_with_retry(os.getenv('RETRIES_TIME', 3))
 
 main()
