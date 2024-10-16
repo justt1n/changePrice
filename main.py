@@ -1,3 +1,4 @@
+import os
 from time import sleep
 
 from google.oauth2 import service_account
@@ -98,7 +99,7 @@ def get_final_price(current_price: float, target_price: float, min_change_price:
 
     if current_price == target_price:
         print("Current price is equal to target price")
-        return round(current_price, floating_point)
+        return round(max(min_price, current_price - min_change_price), floating_point)
 
     if current_price < target_price:
         print("Current price is less than target price")
@@ -106,13 +107,10 @@ def get_final_price(current_price: float, target_price: float, min_change_price:
             print("Target price is greater than max price, set current price to max price")
             return max_price
         else:
-            while current_price - target_price > max_change_price and current_price - max_change_price >= min_price:
-                current_price -= max_change_price
-
-            while current_price - target_price < min_change_price  and current_price - min_change_price >= min_price:
-                current_price -= min_change_price
-
-            current_price = max(current_price, min_price)
+            while current_price + max_change_price <= target_price:
+                current_price += max_change_price
+            while current_price + min_change_price <= target_price:
+                current_price += min_change_price
 
             print("Optimized price, new price is: ", round(current_price, floating_point))
         return round(min(current_price, max_price), floating_point)
@@ -122,13 +120,16 @@ def get_final_price(current_price: float, target_price: float, min_change_price:
             print("Target price is less than min price, set current price to min price")
             return min_price
         else:
-            while current_price - target_price >= max_change_price and current_price - max_change_price >= min_price:
+            while round(current_price - target_price, floating_point) >= max_change_price and round(current_price - max_change_price, floating_point) >= min_price:
                 current_price -= max_change_price
 
-            while current_price - target_price >= min_change_price and current_price - min_change_price >= min_price:
+            while round(current_price - target_price, floating_point) >= min_change_price and round(current_price - min_change_price, 2) >= min_price:
                 current_price -= min_change_price
 
-            return min(min(round(current_price, floating_point), max_price), min_price)
+            if current_price >= min_price - min_change_price:
+                current_price -= min_change_price
+
+            return round(max(current_price, min_price), floating_point)
 
 
 def write_log_cell(index, log_str, column='C'):
@@ -138,26 +139,32 @@ def write_log_cell(index, log_str, column='C'):
     update_sheet_data(spreadsheet_id, sheet_name, cell_to_write, [[log_str]])
 
 
-def get_target_to_compare(payload: Payload, min_price, max_price, my_name):
+def get_target_to_compare(payload: Payload):
     _current_top_offers = get_product_offers(int(payload.PRODUCT_COMPARE), os.getenv('GAMIVO_API_KEY'))
     _current_top_offer = _current_top_offers[0]
     _current_top_price = _current_top_offer['price']
     _current_top_seller = _current_top_offer['seller']
-    if len(_current_top_offers) > 1:
-        _current_second_offer = _current_top_offers[1]
-        _current_second_price = _current_second_offer['price']
-        _current_second_seller = _current_second_offer['seller']
 
     target_seller = _current_top_seller
     target_price = _current_top_price
-    if _current_top_seller in BLACKLIST:
-        target_seller = _current_second_seller
-        target_price = _current_second_price
-        if _current_second_seller in BLACKLIST:
-            target_seller = my_name
-            target_price = min_price
 
-    return target_seller, target_price
+    # if _current_top_seller in BLACKLIST and len(_current_top_offers) > 1:
+    #     _current_second_offer = _current_top_offers[1]
+    #     _current_second_price = _current_second_offer['price']
+    #     _current_second_seller = _current_second_offer['seller']
+    #
+    #
+    #
+    # if _current_top_seller in BLACKLIST:
+    #     target_seller = _current_second_seller
+    #     target_price = _current_second_price
+    #     if _current_second_seller in BLACKLIST:
+    #         target_seller = _current_second_seller
+    #         target_price = _current_second_price
+
+    return target_seller, target_price, len(_current_top_offers)
+
+
 
 def do_payload(index, payload, blacklist_cache=None):
     global TMP_BLACKLIST_RANGE, BLACKLIST
@@ -170,7 +177,9 @@ def do_payload(index, payload, blacklist_cache=None):
         BLACKLIST = blacklist_cache
     else:
         TMP_BLACKLIST_RANGE = payload.CELL_BLACKLIST
-        BLACKLIST = flatten_2d_array(get_sheet_data(payload.IDSHEET_BLACKLIST, TMP_BLACKLIST_RANGE))
+        #append sheet_blacklist with range
+        TMP_BLACKLIST_RANGE = f"{payload.SHEET_BLACKLIST}!{TMP_BLACKLIST_RANGE}"
+        BLACKLIST = flatten_2d_array(get_sheet_data(os.getenv("MAIN_SHEET_ID"), TMP_BLACKLIST_RANGE))
 
     # Fetch min and max prices
     min_price, max_price, stock = get_payload_min_max_price(payload)
@@ -179,7 +188,7 @@ def do_payload(index, payload, blacklist_cache=None):
     _offer_id = price_service.get_order_id_by_product_id(int(payload.PRODUCT_COMPARE))
     offer_data = retrieve_offer_by_id(_offer_id, os.getenv('GAMIVO_API_KEY'))
     _current_price = offer_data['retail_price']
-    _current_top_seller, _current_top_price = get_target_to_compare(payload, min_price, max_price, offer_data['seller_name'])
+    _current_top_seller, _current_top_price, num_of_offer = get_target_to_compare(payload)
     # Calculate target price
     _min_change_price = payload.DONGIAGIAM_MIN
     _max_change_price = payload.DONGIAGIAM_MAX
@@ -187,11 +196,44 @@ def do_payload(index, payload, blacklist_cache=None):
         'seller_price')
     _current_top_price = calculate_seller_price(_offer_id, _current_top_price, os.getenv('GAMIVO_API_KEY')).get(
         'seller_price')
-
+    log_data = []
+    log_str = ''
     # Skip if seller is in blacklist
     if _current_top_seller in BLACKLIST:
-        print(f"Current top seller is in blacklist: {_current_top_seller}")
+        price = _current_price
+        _current_top_offers = get_product_offers(int(payload.PRODUCT_COMPARE), os.getenv('GAMIVO_API_KEY'))
+        if len(_current_top_offers) == 1:
+            print(f"Current top seller is in blacklist and it the only offer then set to max price: {_current_top_seller}")
+            price = max_price
+        elif len(_current_top_offers) == 2:
+            _second_current_top_seller = _current_top_offers[1]['seller']
+            _second_current_top_price = _current_top_offers[1]['price']
+            _second_current_top_price = calculate_seller_price(_offer_id, _second_current_top_price, os.getenv('GAMIVO_API_KEY')).get(
+                'seller_price')
+            if _second_current_top_seller in BLACKLIST:
+                print(f"2nd top seller is in blacklist and set to max price: {_current_top_seller}")
+                price = max_price
+            else:
+                price = get_final_price(float(_current_price), float(_second_current_top_price), float(_min_change_price),
+                                        float(_max_change_price), int(payload.DONGIA_LAMTRON), float(min_price),
+                                        float(max_price))
+
+        edit_offer_payload = price_service.convert_to_new_offer(offer_data, price, stock)
+        print(("offer_data", offer_data))
+        print(f"Set {payload.Product_name} to {price}")
+        status_code, res = put_edit_offer_by_id(edit_offer_payload, _offer_id, os.getenv('GAMIVO_API_KEY'))
+        if status_code == 200:
+            log_str = f"{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}: Giá đã cập nhật thành công; Price = {price}; Pricemin = {min_price}, Pricemax = {max_price}, GiaSosanh = {_current_top_price} - Seller: {_current_top_seller}"
+            # print(log_str)
+            log_data.append((index, log_str, 'C'))
+        log_data.append((index, f"{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}", 'D'))
+        print(log_str)
+        batch_write_log(log_data)
         return BLACKLIST
+
+
+
+
 
     _target_price = get_final_price(float(_current_price), float(_current_top_price), float(_min_change_price),
                                     float(_max_change_price), int(payload.DONGIA_LAMTRON), float(min_price),
@@ -200,14 +242,14 @@ def do_payload(index, payload, blacklist_cache=None):
 
 
     # Log information
-    log_data = []
+
 
     # if _current_top_seller == "Cnlgaming":
     #     log_data.append((index, f"{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}", 'D'))
     #     batch_write_log(log_data)
     #     # print(f"Requests made for this payload: {REQUEST_COUNT}")
     #     return BLACKLIST
-    log_str = ''
+
     edit_offer_payload = price_service.convert_to_new_offer(offer_data, _target_price, stock)
     print(("offer_data", offer_data))
     print(f"Set {payload.Product_name} to {_target_price}")
@@ -245,6 +287,7 @@ def batch_write_log(log_data):
 
 
 def process():
+    global BLACKLIST
     sheet_id = os.getenv('MAIN_SHEET_ID')
     data = get_sheet_data(sheet_id, os.getenv('MAIN_SHEET_NAME'))
     data = data[int(os.getenv('START_ROW')):]
@@ -255,6 +298,7 @@ def process():
             continue
 
     for index, payload in enumerate(PAYLOADS):
+        BLACKLIST = []
         if payload.CHECK == '':
             continue
         if int(payload.CHECK) != 1:
@@ -289,10 +333,9 @@ def main():
     global PAYLOADS
     load_dotenv('settings.env')
     onload()
-    # while True:
-    #     PAYLOADS = []
-    #     process_with_retry(os.getenv('RETRIES_TIME', 3))
-    process_with_retry(os.getenv('RETRIES_TIME', 3))
+    while True:
+        PAYLOADS = []
+        process_with_retry(os.getenv('RETRIES_TIME', 3))
 
 
 main()
