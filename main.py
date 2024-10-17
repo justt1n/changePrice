@@ -1,4 +1,3 @@
-import os
 from time import sleep
 
 from google.oauth2 import service_account
@@ -112,10 +111,12 @@ def get_final_price(current_price: float, target_price: float, min_change_price:
             print("Target price is less than min price, set current price to min price")
             return min_price
         else:
-            while round(current_price - target_price, floating_point) >= max_change_price and round(current_price - max_change_price, floating_point) >= min_price:
+            while round(current_price - target_price, floating_point) >= max_change_price and round(
+                    current_price - max_change_price, floating_point) >= min_price:
                 current_price -= max_change_price
 
-            while round(current_price - target_price, floating_point) >= min_change_price and round(current_price - min_change_price, 2) >= min_price:
+            while round(current_price - target_price, floating_point) >= min_change_price and round(
+                    current_price - min_change_price, 2) >= min_price:
                 current_price -= min_change_price
 
             if current_price >= min_price - min_change_price:
@@ -157,7 +158,6 @@ def get_target_to_compare(payload: Payload):
     return target_seller, target_price, len(_current_top_offers)
 
 
-
 def do_payload(index, payload, blacklist_cache=None):
     global TMP_BLACKLIST_RANGE, BLACKLIST
     global REQUEST_COUNT
@@ -169,7 +169,7 @@ def do_payload(index, payload, blacklist_cache=None):
         BLACKLIST = blacklist_cache
     else:
         TMP_BLACKLIST_RANGE = payload.CELL_BLACKLIST
-        #append sheet_blacklist with range
+        # append sheet_blacklist with range
         TMP_BLACKLIST_RANGE = f"{payload.SHEET_BLACKLIST}!{TMP_BLACKLIST_RANGE}"
         BLACKLIST = flatten_2d_array(get_sheet_data(os.getenv("MAIN_SHEET_ID"), TMP_BLACKLIST_RANGE))
 
@@ -196,26 +196,29 @@ def do_payload(index, payload, blacklist_cache=None):
     if len(_current_top_offers) == 2:
         _second_current_top_price = _current_top_offers[1]['price']
         _second_current_top_seller = _current_top_offers[1]['seller']
-        _second_current_top_price = calculate_seller_price(_offer_id, _second_current_top_price, os.getenv('GAMIVO_API_KEY')).get(
+        _second_current_top_price = calculate_seller_price(_offer_id, _second_current_top_price,
+                                                           os.getenv('GAMIVO_API_KEY')).get(
             'seller_price')
     # Skip if seller is in blacklist
     if _current_top_seller in BLACKLIST:
         price = _current_price
         if len(_current_top_offers) == 1:
-            print(f"Current top seller is in blacklist and it the only offer then set to max price: {_current_top_seller}")
+            print(
+                f"Current top seller is in blacklist and it the only offer then set to max price: {_current_top_seller}")
             price = max_price
         elif len(_current_top_offers) == 2:
             _second_current_top_seller = _current_top_offers[1]['seller']
             _second_current_top_price = _current_top_offers[1]['price']
-            _second_current_top_price = calculate_seller_price(_offer_id, _second_current_top_price, os.getenv('GAMIVO_API_KEY')).get(
+            _second_current_top_price = calculate_seller_price(_offer_id, _second_current_top_price,
+                                                               os.getenv('GAMIVO_API_KEY')).get(
                 'seller_price')
             if _second_current_top_seller in BLACKLIST:
                 print(f"2nd top seller is in blacklist and set to max price: {_current_top_seller}")
                 price = max_price
-            else:
-                price = get_final_price(float(_current_price), float(_second_current_top_price), float(_min_change_price),
-                                        float(_max_change_price), int(payload.DONGIA_LAMTRON), float(min_price),
-                                        float(max_price))
+            # else:
+            # price = get_final_price(float(_current_price), float(_second_current_top_price), float(_min_change_price),
+            #                         float(_max_change_price), int(payload.DONGIA_LAMTRON), float(min_price),
+            #                         float(max_price))
 
         edit_offer_payload = price_service.convert_to_new_offer(offer_data, price, stock)
         print(("offer_data", offer_data))
@@ -232,14 +235,9 @@ def do_payload(index, payload, blacklist_cache=None):
         batch_write_log(log_data)
         return BLACKLIST
 
-
-
-
-
     _target_price = get_final_price(float(_current_price), float(_current_top_price), float(_min_change_price),
                                     float(_max_change_price), int(payload.DONGIA_LAMTRON), float(min_price),
                                     float(max_price))
-
 
     edit_offer_payload = price_service.convert_to_new_offer(offer_data, _target_price, stock)
     print(("offer_data", offer_data))
