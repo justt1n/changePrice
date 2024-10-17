@@ -104,7 +104,12 @@ def get_final_price(current_price: float, target_price: float, min_change_price:
 
     if current_price < target_price:
         print("Current price is less than target price")
-        return current_price
+        new_price = target_price - min_change_price
+        if new_price < min_price:
+            print("New price is less than min price, set current price to min price")
+            return min_price
+        else:
+            return round(new_price, floating_point)
 
     if current_price > target_price:
         if target_price < min_price:
@@ -215,10 +220,10 @@ def do_payload(index, payload, blacklist_cache=None):
             if _second_current_top_seller in BLACKLIST:
                 print(f"2nd top seller is in blacklist and set to max price: {_current_top_seller}")
                 price = max_price
-            # else:
-            # price = get_final_price(float(_current_price), float(_second_current_top_price), float(_min_change_price),
-            #                         float(_max_change_price), int(payload.DONGIA_LAMTRON), float(min_price),
-            #                         float(max_price))
+            else:
+                price = get_final_price(float(_current_price), float(_second_current_top_price), float(_min_change_price),
+                                        float(_max_change_price), int(payload.DONGIA_LAMTRON), float(min_price),
+                                        float(max_price))
 
         edit_offer_payload = price_service.convert_to_new_offer(offer_data, price, stock)
         print(("offer_data", offer_data))
