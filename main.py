@@ -166,7 +166,14 @@ def get_target_to_compare(payload: Payload):
 def do_payload(index, payload, blacklist_cache=None):
     global TMP_BLACKLIST_RANGE, BLACKLIST
     global REQUEST_COUNT
-
+    _second_current_top_price = None
+    _second_current_top_seller = None
+    _third_current_top_price = None
+    _third_current_top_seller = None
+    _fourth_current_top_price = None
+    _fourth_current_top_seller = None
+    _compare_price = None
+    _compare_seller = None
     REQUEST_COUNT = 0  # Reset request count for each payload
 
     # Use cached blacklist if available, otherwise fetch once and cache it
@@ -186,6 +193,10 @@ def do_payload(index, payload, blacklist_cache=None):
     offer_data = retrieve_offer_by_id(_offer_id, os.getenv('GAMIVO_API_KEY'))
     _current_price = offer_data['retail_price']
     _current_top_seller, _current_top_price, num_of_offer = get_target_to_compare(payload)
+
+    #set compare price and seller
+
+
     # Calculate target price
     _min_change_price = payload.DONGIAGIAM_MIN
     _max_change_price = payload.DONGIAGIAM_MAX
@@ -193,21 +204,19 @@ def do_payload(index, payload, blacklist_cache=None):
         'seller_price')
     _current_top_price = calculate_seller_price(_offer_id, _current_top_price, os.getenv('GAMIVO_API_KEY')).get(
         'seller_price')
+    _compare_price = _current_top_price
+    _compare_seller = _current_top_seller
     log_data = []
     log_str = ''
     _current_top_offers = get_product_offers(int(payload.PRODUCT_COMPARE), os.getenv('GAMIVO_API_KEY'))
-    _second_current_top_price = None
-    _second_current_top_seller = None
-    _third_current_top_price = None
-    _third_current_top_seller = None
-    _fourth_current_top_price = None
-    _fourth_current_top_seller = None
+
     if len(_current_top_offers) >= 2:
         _second_current_top_price = _current_top_offers[1]['price']
         _second_current_top_seller = _current_top_offers[1]['seller']
         _second_current_top_price = calculate_seller_price(_offer_id, _second_current_top_price,
                                                            os.getenv('GAMIVO_API_KEY')).get(
             'seller_price')
+
     if len(_current_top_offers) >= 3:
         _third_current_top_price = _current_top_offers[2]['price']
         _third_current_top_seller = _current_top_offers[2]['seller']
@@ -220,6 +229,17 @@ def do_payload(index, payload, blacklist_cache=None):
         _fourth_current_top_price = calculate_seller_price(_offer_id, _fourth_current_top_price,
                                                            os.getenv('GAMIVO_API_KEY')).get(
             'seller_price')
+
+    if _compare_price < min_price:
+        _compare_price = _second_current_top_price
+        _compare_seller = _second_current_top_seller
+        if _compare_price < min_price:
+            _compare_price = _third_current_top_price
+            _compare_seller = _third_current_top_seller
+            if _compare_price < min_price:
+                _compare_price = _fourth_current_top_price
+                _compare_seller = _fourth_current_top_seller
+
     # Skip if seller is in blacklist
     if _current_top_seller in BLACKLIST:
         price = _current_price
@@ -256,7 +276,7 @@ def do_payload(index, payload, blacklist_cache=None):
         batch_write_log(log_data)
         return BLACKLIST
 
-    _target_price = get_final_price(float(_current_price), float(_current_top_price), float(_min_change_price),
+    _target_price = get_final_price(float(_current_price), float(_compare_price), float(_min_change_price),
                                     float(_max_change_price), int(payload.DONGIA_LAMTRON), float(min_price),
                                     float(max_price))
 
@@ -265,7 +285,7 @@ def do_payload(index, payload, blacklist_cache=None):
     print(f"Set {payload.Product_name} to {_target_price}")
     status_code, res = put_edit_offer_by_id(edit_offer_payload, _offer_id, os.getenv('GAMIVO_API_KEY'))
     if status_code == 200:
-        log_str = f"{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}: Giá đã cập nhật thành công; Price = {_target_price}; Pricemin = {min_price}, Pricemax = {max_price}, GiaSosanh = {_current_top_price} - Seller: {_current_top_seller}"
+        log_str = f"{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}: Giá đã cập nhật thành công; Price = {_target_price}; Pricemin = {min_price}, Pricemax = {max_price}, GiaSosanh = {_compare_price} - Seller: {_compare_seller}"
         log_str += f"\n----Top Sellers----\n- 1st Seller: {_current_top_seller} - Price: {_current_top_price}"
         if (_second_current_top_seller is not None) and (_second_current_top_price is not None):
             log_str += f"\n- 2nd Seller: {_second_current_top_seller} - Price: {_second_current_top_price}"
