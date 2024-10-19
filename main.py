@@ -194,8 +194,7 @@ def do_payload(index, payload, blacklist_cache=None):
     _current_price = offer_data['retail_price']
     _current_top_seller, _current_top_price, num_of_offer = get_target_to_compare(payload)
 
-    #set compare price and seller
-
+    # set compare price and seller
 
     # Calculate target price
     _min_change_price = payload.DONGIAGIAM_MIN
@@ -230,15 +229,25 @@ def do_payload(index, payload, blacklist_cache=None):
                                                            os.getenv('GAMIVO_API_KEY')).get(
             'seller_price')
 
-    if _compare_price < min_price:
+    if _current_top_price < min_price:
         _compare_price = _second_current_top_price
         _compare_seller = _second_current_top_seller
-        if _compare_price < min_price:
+        if _second_current_top_price < min_price:
             _compare_price = _third_current_top_price
             _compare_seller = _third_current_top_seller
-            if _compare_price < min_price:
+            if _third_current_top_price < min_price:
                 _compare_price = _fourth_current_top_price
                 _compare_seller = _fourth_current_top_seller
+
+                # if _compare_price < min_price:
+    #     _compare_price = _second_current_top_price
+    #     _compare_seller = _second_current_top_seller
+    #     if _compare_price < min_price:
+    #         _compare_price = _third_current_top_price
+    #         _compare_seller = _third_current_top_seller
+    #         if _compare_price < min_price:
+    #             _compare_price = _fourth_current_top_price
+    #             _compare_seller = _fourth_current_top_seller
 
     # Skip if seller is in blacklist
     if _current_top_seller in BLACKLIST:
@@ -257,7 +266,8 @@ def do_payload(index, payload, blacklist_cache=None):
                 print(f"2nd top seller is in blacklist and set to max price: {_current_top_seller}")
                 price = max_price
             else:
-                price = get_final_price(float(_current_price), float(_second_current_top_price), float(_min_change_price),
+                price = get_final_price(float(_current_price), float(_second_current_top_price),
+                                        float(_min_change_price),
                                         float(_max_change_price), int(payload.DONGIA_LAMTRON), float(min_price),
                                         float(max_price))
 
