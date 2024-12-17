@@ -89,6 +89,10 @@ def get_payload_min_max_price(payload: Payload):
 
 def get_final_price(current_price: float, target_price: float, min_change_price: float, max_change_price: float,
                     floating_point: int, min_price: float, max_price: float):
+    if target_price >= max_price:
+        print("Target price is greater than max price so I return max price")
+        return max_price
+
     if floating_point is None:
         floating_point = 2
 
