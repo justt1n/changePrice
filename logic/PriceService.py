@@ -3,7 +3,6 @@ from logic.SQLiteDB import *
 
 class PriceService:
     def __init__(self):
-        self.product_db = SQLiteDB('storage/products.db')
         self.offer_db = SQLiteDB('storage/product_offers.db')
 
     def get_order_id_by_product_id(self, product_id) -> int:
