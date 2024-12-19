@@ -166,3 +166,5 @@ cython_debug/
 /creds.json
 /creds2.json
 /.idea/dataSources/22ec5e6a-43ae-45ef-8c2a-b66bab26d76e/storage_v2/_src_/schema/main.uQUzAA.meta
+/storage/product_offers.db
+/storage/products.db
