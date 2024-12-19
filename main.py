@@ -233,13 +233,13 @@ def do_payload(index, payload, blacklist_cache=None):
                                                            os.getenv('GAMIVO_API_KEY')).get(
             'seller_price')
 
-    if _current_top_price < min_price:
+    if _current_top_price is not None and _current_top_price < min_price:
         _compare_price = _second_current_top_price
         _compare_seller = _second_current_top_seller
-        if _second_current_top_price < min_price:
+        if _second_current_top_price is not None and _third_current_top_price is not None and _second_current_top_price < min_price:
             _compare_price = _third_current_top_price
             _compare_seller = _third_current_top_seller
-            if _third_current_top_price < min_price:
+            if _third_current_top_price is not None and _fourth_current_top_price is not None and _third_current_top_price < min_price:
                 _compare_price = _fourth_current_top_price
                 _compare_seller = _fourth_current_top_seller
 
