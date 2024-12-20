@@ -1,3 +1,4 @@
+import os
 from time import sleep
 
 from google.oauth2 import service_account
@@ -141,8 +142,10 @@ def write_log_cell(index, log_str, column='C'):
     update_sheet_data(spreadsheet_id, sheet_name, cell_to_write, [[log_str]])
 
 
-def get_target_to_compare(payload: Payload):
+def get_target_to_compare(payload: Payload, max_price):
     _current_top_offers = get_product_offers(int(payload.PRODUCT_COMPARE), os.getenv('GAMIVO_API_KEY'))
+    if len(_current_top_offers) == 0:
+        return "us", max_price*1.1, 0
     _current_top_offer = _current_top_offers[0]
     _current_top_price = _current_top_offer['price']
     _current_top_seller = _current_top_offer['seller']
@@ -195,8 +198,11 @@ def do_payload(index, payload, blacklist_cache=None):
     # Gather price and product info in a single API call
     _offer_id = price_service.get_order_id_by_product_id(int(payload.PRODUCT_COMPARE))
     offer_data = retrieve_offer_by_id(_offer_id, os.getenv('GAMIVO_API_KEY'))
+    if offer_data.status_code != 200:
+        raise Exception(offer_data.json()["message"])
+    offer_data = offer_data.json()
     _current_price = offer_data['retail_price']
-    _current_top_seller, _current_top_price, num_of_offer = get_target_to_compare(payload)
+    _current_top_seller, _current_top_price, num_of_offer = get_target_to_compare(payload, max_price)
 
     # set compare price and seller
 
@@ -314,7 +320,7 @@ def do_payload(index, payload, blacklist_cache=None):
     # Log the action
 
     log_data.append((index, f"{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}", 'D'))
-
+    log_data.append((index, "", 'E'))
     # Batch write log data
     batch_write_log(log_data)
 
@@ -327,7 +333,7 @@ def batch_write_log(log_data):
     cells_to_update = []
     for log in log_data:
         index, log_str, column = log
-        cell_to_write = f'{column}{index + 1 + int(os.getenv("START_ROW"))}'
+        cell_to_write = f'{os.getenv("MAIN_SHEET_NAME")}!{column}{index + 1 + int(os.getenv("START_ROW"))}'
         cells_to_update.append({'range': cell_to_write, 'values': [[log_str]]})
 
     if cells_to_update:
@@ -361,7 +367,7 @@ def process():
                     print("Quota exceeded, sleeping for 60 seconds")
                     sleep(60)
                 else:
-                    log_str = f"Error processing payload at index {index}: {e}"
+                    log_str = f"Error: {e}"
                     write_log_cell(index, log_str, column='E')
                     break  # If it's not a quota issue, break the loop
 

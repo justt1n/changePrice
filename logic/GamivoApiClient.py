@@ -5,6 +5,7 @@ import os
 
 from dotenv import load_dotenv
 from gspread import api_key
+from requests import Response
 
 from entity import ChangePriceModel
 
@@ -28,14 +29,14 @@ def get_product_offers(product_id: int, api_key: str)-> list:
     return results
 
 
-def retrieve_offer_by_id(offer_id: int, api_key: str)-> dict:
+def retrieve_offer_by_id(offer_id: int, api_key: str) -> Response:
     url = f"https://backend.gamivo.com/api/public/v1/offers/{offer_id}"
     headers = {
         "accept": "application/json",
         "Authorization": api_key
     }
     response = requests.get(url, headers=headers)
-    return response.json()
+    return response
 
 
 
