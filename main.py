@@ -82,8 +82,16 @@ def get_payload_min_max_price(payload: Payload):
     cell_min = f"{payload.SHEET_MIN}!{payload.CELL_MIN}"
     cell_max = f"{payload.SHEET_MAX}!{payload.CELL_MAX}"
     call_stock = f"{payload.SHEET_STOCK}!{payload.CELL_STOCK}"
-    min_price = get_sheet_data(payload.IDSHEET_MIN, cell_min)[0][0]
-    max_price = get_sheet_data(payload.IDSHEET_MAX, cell_max)[0][0]
+    try:
+        min_price = get_sheet_data(payload.IDSHEET_MIN, cell_min)[0][0]
+    except Exception:
+        raise Exception("Get min price fail")
+
+    try:
+        max_price = get_sheet_data(payload.IDSHEET_MAX, cell_max)[0][0]
+    except Exception:
+        raise Exception("Get max price fail")
+
     stock = get_sheet_data(payload.IDSHEET_STOCK, call_stock)[0][0]
     return float(min_price), float(max_price), int(stock)
 
