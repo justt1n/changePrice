@@ -152,6 +152,7 @@ def write_log_cell(index, log_str, column='C'):
 
 def get_target_to_compare(payload: Payload, max_price):
     _current_top_offers = get_product_offers(int(payload.PRODUCT_COMPARE), os.getenv('GAMIVO_API_KEY'))
+    _current_top_offers = sorted(_current_top_offers, key=lambda x: x.get('price', float('inf')))
     if len(_current_top_offers) == 0:
         return "us", max_price*1.1, 0
     _current_top_offer = _current_top_offers[0]
@@ -226,7 +227,7 @@ def do_payload(index, payload, blacklist_cache=None):
     log_data = []
     log_str = ''
     _current_top_offers = get_product_offers(int(payload.PRODUCT_COMPARE), os.getenv('GAMIVO_API_KEY'))
-
+    _current_top_offers = sorted(_current_top_offers, key=lambda x: x.get('price', float('inf')))
     if len(_current_top_offers) >= 2:
         _second_current_top_price = _current_top_offers[1]['price']
         _second_current_top_seller = _current_top_offers[1]['seller']
