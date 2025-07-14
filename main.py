@@ -98,6 +98,8 @@ def get_payload_min_max_price(payload: Payload):
 
 def get_final_price(current_price: float, target_price: float, min_change_price: float, max_change_price: float,
                     floating_point: int, min_price: float, max_price: float):
+    target_price = max(target_price, min_price)
+    target_price = min(target_price, max_price)
     if target_price > max_price:
         print("Target price is greater than max price so I return max price")
         return max_price
@@ -223,6 +225,8 @@ def do_payload(index, payload, blacklist_cache=None):
     _current_top_price = calculate_seller_price(_offer_id, _current_top_price, os.getenv('GAMIVO_API_KEY')).get(
         'seller_price')
     _compare_price = _current_top_price
+    if min_price is not None and _compare_price < min_price:
+        _compare_price = min_price
     _compare_seller = _current_top_seller
     log_data = []
     log_str = ''
