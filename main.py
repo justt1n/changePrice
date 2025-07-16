@@ -119,7 +119,7 @@ def get_final_price(current_price: float, target_price: float, min_change_price:
 
     if current_price < target_price:
         print("Current price is less than target price")
-        new_price = target_price - min_change_price
+        new_price = max(min_price, target_price - min_change_price)
         if new_price < min_price:
             print("New price is less than min price, set current price to min price")
             return min_price
